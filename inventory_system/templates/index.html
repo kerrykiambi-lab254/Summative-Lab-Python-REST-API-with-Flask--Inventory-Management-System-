@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management System</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #1a1a2e;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 0.5rem;
+            color: #16213e;
+        }
+        .subtitle { color: #555; margin-bottom: 2rem; font-size: 1.05rem; }
+
+        /* Cards */
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .card h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            color: #16213e;
+        }
+
+        /* Forms */
+        .form-row {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.3rem;
+        }
+        .form-group label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #444;
+        }
+        input, select {
+            padding: 0.6rem 1rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4361ee;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.6rem 1.4rem;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .btn-primary { background: #4361ee; color: #fff; }
+        .btn-primary:hover { background: #3a56d4; }
+        .btn-success { background: #06d6a0; color: #fff; }
+        .btn-success:hover { background: #05c090; }
+        .btn-danger { background: #ef476f; color: #fff; }
+        .btn-danger:hover { background: #d63d62; }
+        .btn-warning { background: #ffd166; color: #333; }
+        .btn-warning:hover { background: #f0c24f; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .btn-secondary:hover { background: #5c636a; }
+        .btn-sm { padding: 0.35rem 0.9rem; font-size: 0.85rem; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Status / Messages */
+        #status {
+            padding: 0.8rem 1.2rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            display: none;
+            font-weight: 500;
+        }
+        #status.success { display: block; background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        #status.error { display: block; background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        #status.info { display: block; background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+        /* Inventory Table */
+        .table-wrapper { overflow-x: auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95rem;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        tr:hover td { background: #f8f9ff; }
+        .badge {
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: #e9ecef;
+        }
+        .badge-low { background: #ffd166; color: #7a6200; }
+        .badge-out { background: #ef476f; color: #fff; }
+        .badge-ok { background: #06d6a0; color: #fff; }
+        .actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+        .item-count {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .form-row { flex-direction: column; }
+            .form-group { width: 100%; }
+            input, select { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📦 Inventory Management</h1>
+        <p class="subtitle">Manage your stock, add items, and sync products from external sources.</p>
+
+        <div id="status"></div>
+
+        <!-- Add Item Form -->
+        <div class="card">
+            <h2>➕ Add New Item</h2>
+            <form id="addForm" class="form-row">
+                <div class="form-group">
+                    <label for="name">Name *</label>
+                    <input type="text" id="name" placeholder="Item name" required>
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <input type="text" id="category" placeholder="e.g. Electronics">
+                </div>
+                <div class="form-group">
+                    <label for="price">Price ($)</label>
+                    <input type="number" id="price" step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="form-group">
+                    <label for="quantity">Quantity</label>
+                    <input type="number" id="quantity" min="0" placeholder="0">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Item</button>
+            </form>
+        </div>
+
+        <!-- External API -->
+        <div class="card">
+            <h2>🌐 Fetch from External API</h2>
+            <p style="margin-bottom: 0.8rem; color: #666;">
+                Pull products from FakeStore API and add them to your inventory.
+            </p>
+            <button id="fetchBtn" class="btn btn-success">Fetch Products from FakeStore</button>
+        </div>
+
+        <!-- Inventory List -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-bottom: 1rem;">
+                <h2 style="margin-bottom: 0;">📋 Inventory</h2>
+                <div style="display: flex; gap: 0.5rem;">
+                    <button id="refreshBtn" class="btn btn-secondary btn-sm">🔄 Refresh</button>
+                    <button id="clearBtn" class="btn btn-danger btn-sm">🗑️ Clear All</button>
+                </div>
+            </div>
+            <div id="itemCount" class="item-count">Loading...</div>
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Category</th>
+                            <th>Price</th>
+                            <th>Qty</th>
+                            <th>Stock</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="inventoryBody">
+                        <tr><td colspan="7" style="text-align:center; color: #999;">Loading inventory...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/items';
+        const statusEl = document.getElementById('status');
+
+        function showStatus(message, type) {
+            statusEl.textContent = message;
+            statusEl.className = type;
+        }
+
+        function clearStatus() {
+            statusEl.className = '';
+            statusEl.textContent = '';
+            statusEl.style.display = 'none';
+        }
+
+        async function fetchInventory() {
+            try {
+                const res = await fetch(API_BASE);
+                const data = await res.json();
+                renderInventory(data.items);
+                document.getElementById('itemCount').textContent = `Showing ${data.count} item(s)`;
+            } catch (err) {
+                document.getElementById('inventoryBody').innerHTML =
+                    '<tr><td colspan="7" style="text-align:center;color:#ef476f;">Failed to load inventory.</td></tr>';
+                showStatus('Failed to load inventory: ' + err.message, 'error');
+            }
+        }
+
+        function renderInventory(items) {
+            const tbody = document.getElementById('inventoryBody');
+            if (!items || items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">No items in inventory. Add one or fetch from external API!</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(item => {
+                let badgeClass = 'badge-ok';
+                let badgeText = 'In Stock';
+                if (item.quantity === 0) {
+                    badgeClass = 'badge-out';
+                    badgeText = 'Out of Stock';
+                } else if (item.quantity <= 5) {
+                    badgeClass = 'badge-low';
+                    badgeText = 'Low Stock';
+                }
+                return `<tr>
+                    <td>${item.id}</td>
+                    <td><strong>${escapeHtml(item.name)}</strong></td>
+                    <td><span class="badge">${escapeHtml(item.category)}</span></td>
+                    <td>$${Number(item.price).toFixed(2)}</td>
+                    <td>${item.quantity}</td>
+                    <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-warning btn-sm" onclick="editItem(${item.id})">✏️ Edit</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteItem(${item.id})">🗑️ Del</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Add item
+        document.getElementById('addForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearStatus();
+
+            const name = document.getElementById('name').value.trim();
+            const category = document.getElementById('category').value.trim();
+            const price = parseFloat(document.getElementById('price').value) || 0;
+            const quantity = parseInt(document.getElementById('quantity').value) || 0;
+
+            if (!name) {
+                showStatus('Item name is required.', 'error');
+                return;
+            }
+
+            const payload = { name, price, quantity };
+            if (category) payload.category = category;
+
+            try {
+                const res = await fetch(API_BASE, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showStatus(data.error || 'Failed to add item', 'error');
+                    return;
+                }
+                showStatus(`✅ Item "${data.name}" added successfully!`, 'success');
+                document.getElementById('addForm').reset();
+                fetchInventory();
+            } catch (err) {
+                showStatus('Error adding item: ' + err.message, 'error');
+            }
+        });
+
+        // Delete item
+        async function deleteItem(id) {
+            clearStatus();
+            if (!confirm('Delete this item?')) return;
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showStatus(data.error || 'Failed to delete', 'error');
+                    return;
+                }
+                showStatus(data.message, 'info');
+                fetchInventory();
+            } catch (err) {
+                showStatus('Error deleting item: ' + err.message, 'error');
+            }
+        }
+
+        // Edit item (quick inline prompt)
+        async function editItem(id) {
+            clearStatus();
+            const newName = prompt('New name (leave empty to keep):');
+            if (newName === null) return;
+
+            const newPrice = prompt('New price (leave empty to keep):');
+            const newQty = prompt('New quantity (leave empty to keep):');
+
+            const payload = {};
+            if (newName.trim()) payload.name = newName.trim();
+            if (newPrice !== null && newPrice.trim()) {
+                const p = parseFloat(newPrice);
+                if (!isNaN(p) && p >= 0) payload.price = p;
+                else { showStatus('Invalid price.', 'error'); return; }
+            }
+            if (newQty !== null && newQty.trim()) {
+                const q = parseInt(newQty);
+                if (!isNaN(q) && q >= 0) payload.quantity = q;
+                else { showStatus('Invalid quantity.', 'error'); return; }
+            }
+
+            if (Object.keys(payload).length === 0) {
+                showStatus('No changes made.', 'info');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showStatus(data.error || 'Failed to update', 'error');
+                    return;
+                }
+                showStatus(`✅ Item updated successfully!`, 'success');
+                fetchInventory();
+            } catch (err) {
+                showStatus('Error updating item: ' + err.message, 'error');
+            }
+        }
+
+        // Fetch from external API
+        document.getElementById('fetchBtn').addEventListener('click', async () => {
+            clearStatus();
+            const btn = document.getElementById('fetchBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Fetching...';
+            try {
+                const res = await fetch('/fetch-external', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showStatus(data.error || 'Failed to fetch products', 'error');
+                    return;
+                }
+                showStatus(`✅ ${data.message}`, 'success');
+                fetchInventory();
+            } catch (err) {
+                showStatus('Error fetching products: ' + err.message, 'error');
+            } finally {
+                const fetchBtn = document.getElementById('fetchBtn');
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = 'Fetch Products from FakeStore';
+            }
+        });
+
+        // Clear inventory
+        document.getElementById('clearBtn').addEventListener('click', async () => {
+            if (!confirm('Clear all inventory items?')) return;
+            clearStatus();
+            try {
+                const res = await fetch('/clear', { method: 'POST' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showStatus(data.error || 'Failed to clear', 'error');
+                    return;
+                }
+                showStatus(data.message, 'info');
+                fetchInventory();
+            } catch (err) {
+                showStatus('Error clearing inventory: ' + err.message, 'error');
+            }
+        });
+
+        // Refresh button
+        document.getElementById('refreshBtn').addEventListener('click', () => {
+            clearStatus();
+            fetchInventory();
+            showStatus('Inventory refreshed!', 'info');
+        });
+
+        // Load inventory on page load
+        fetchInventory();
+    </script>
+</body>
+</html>
