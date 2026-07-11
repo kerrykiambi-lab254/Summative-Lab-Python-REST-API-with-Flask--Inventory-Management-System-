@@ -85,7 +85,7 @@ def search_external(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Food-themed inventory management CLI")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers = parser.add_subparsers(dest="command", required=False)
 
     subparsers.add_parser("list", help="List all inventory items")
 
@@ -116,6 +116,62 @@ def main():
     args = parser.parse_args()
     print_banner()
 
+    # Interactive selection menu (used when no subcommand is provided)
+    if not getattr(args, "command", None):
+        print("\nSelect an option:")
+        print("1) list")
+        print("2) view")
+        print("3) add")
+        print("4) update")
+        print("5) delete")
+        print("6) search")
+
+        choice = input("Enter choice (1-6): ").strip()
+
+        if choice == "1":
+            list_items()
+        elif choice == "2":
+            item_id = int(input("Enter item id: ").strip())
+            view_item(item_id)
+        elif choice == "3":
+            name = input("Enter name: ").strip()
+            barcode = input("Enter barcode (optional): ").strip()
+            price = float(input("Enter price: ").strip())
+            quantity = int(input("Enter quantity: ").strip())
+            external_lookup = input("External lookup? (y/n): ").strip().lower() == "y"
+            add_item(argparse.Namespace(
+                name=name,
+                barcode=barcode,
+                price=price,
+                quantity=quantity,
+                external_lookup=external_lookup,
+            ))
+        elif choice == "4":
+            item_id = int(input("Enter item id: ").strip())
+            name = input("Enter new name (optional): ").strip() or None
+            barcode = input("Enter new barcode (optional): ").strip() or None
+            price_raw = input("Enter new price (optional): ").strip()
+            quantity_raw = input("Enter new quantity (optional): ").strip()
+            price = float(price_raw) if price_raw else None
+            quantity = int(quantity_raw) if quantity_raw else None
+            update_item(argparse.Namespace(
+                id=item_id,
+                name=name,
+                barcode=barcode,
+                price=price,
+                quantity=quantity,
+            ))
+        elif choice == "5":
+            item_id = int(input("Enter item id: ").strip())
+            delete_item(item_id)
+        elif choice == "6":
+            barcode = input("Enter barcode (optional): ").strip() or None
+            name = input("Enter name (optional): ").strip() or None
+            search_external(argparse.Namespace(barcode=barcode, name=name))
+        else:
+            print("Invalid choice.")
+        return
+
     if args.command == "list":
         list_items()
     elif args.command == "view":
@@ -128,6 +184,7 @@ def main():
         delete_item(args.id)
     elif args.command == "search":
         search_external(args)
+
 
 
 if __name__ == "__main__":

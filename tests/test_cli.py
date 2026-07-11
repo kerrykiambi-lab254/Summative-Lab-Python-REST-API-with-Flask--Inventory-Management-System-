@@ -78,10 +78,14 @@ def test_search_external(capsys):
 
 
 def test_main_shows_food_logo(capsys, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["cli.py", "list"])
+    # Trigger interactive menu path by omitting a subcommand
+    monkeypatch.setattr("sys.argv", ["cli.py"])
+    monkeypatch.setattr("builtins.input", lambda prompt=None: "1")
     cli.main()
     captured = capsys.readouterr()
     assert "PANTRY" in captured.out.upper()
+    assert "Select an option" in captured.out
+
 
 
 def test_list_items_handles_request_error(capsys, monkeypatch):
