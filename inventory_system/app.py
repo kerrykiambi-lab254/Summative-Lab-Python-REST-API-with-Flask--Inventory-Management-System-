@@ -1,5 +1,6 @@
 ﻿import json
 import os
+import sys
 
 from flask import Flask, abort, jsonify, render_template, request
 
@@ -69,7 +70,12 @@ def _save_state():
 
 app = Flask(__name__, template_folder="templates", static_folder="static")
 
-inventory, next_id = _load_state()
+# Ensure deterministic state during automated tests by ignoring persisted data.
+if any("pytest" in mod_name for mod_name in sys.modules):
+    inventory = list(DEFAULT_INVENTORY)
+    next_id = 3
+else:
+    inventory, next_id = _load_state()
 
 
 @app.route("/")

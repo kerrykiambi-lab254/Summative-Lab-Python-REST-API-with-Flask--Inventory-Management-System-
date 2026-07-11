@@ -9,8 +9,8 @@ def print_banner():
     print(
         """
 ┌────────────────────────────────────┐
-│   PANTRY PORTAL CLI                │
-│   Fresh stock, quick pantry picks  │
+│            PANTRY STORE CLI       │
+│   Fresh stock, quick pantry picks │
 └────────────────────────────────────┘
 """
     )
@@ -32,8 +32,27 @@ def _request_json(request_fn, url, **kwargs):
         }
 
 
+def _sort_items(items):
+    if not isinstance(items, list):
+        return items
+
+    def key(it):
+        return (
+            str(it.get("category", "")).strip().lower(),
+            str(it.get("product_name", "")).strip().lower(),
+            it.get("id", 0),
+        )
+
+    try:
+        return sorted(items, key=key)
+    except TypeError:
+        return items
+
+
 def list_items():
     data = _request_json(requests.get, f"{API_BASE}/inventory")
+    if isinstance(data, dict) and "items" in data:
+        data["items"] = _sort_items(data["items"])
     print(json.dumps(data, indent=2))
 
 
@@ -119,57 +138,40 @@ def main():
     # Interactive selection menu (used when no subcommand is provided)
     if not getattr(args, "command", None):
         print("\nSelect an option:")
-        print("1) list")
-        print("2) view")
-        print("3) add")
-        print("4) update")
-        print("5) delete")
-        print("6) search")
+        print("1) Create")
+        print("2) Read")
+        print("3) Update")
+        print("4) Delete")
+        print("5) Count Records")
+        print("6) Clear All")
+        print("7) Search")
+        print("8) Sort Records")
+        print("9) Exit")
 
-        choice = input("Enter choice (1-6): ").strip()
+        choice = input("Enter choice (1-9): ").strip()
 
+        # Implement only choices 1 and 2 (as requested)
         if choice == "1":
-            list_items()
-        elif choice == "2":
-            item_id = int(input("Enter item id: ").strip())
-            view_item(item_id)
-        elif choice == "3":
+            # Create (add item)
             name = input("Enter name: ").strip()
             barcode = input("Enter barcode (optional): ").strip()
             price = float(input("Enter price: ").strip())
             quantity = int(input("Enter quantity: ").strip())
             external_lookup = input("External lookup? (y/n): ").strip().lower() == "y"
-            add_item(argparse.Namespace(
-                name=name,
-                barcode=barcode,
-                price=price,
-                quantity=quantity,
-                external_lookup=external_lookup,
-            ))
-        elif choice == "4":
-            item_id = int(input("Enter item id: ").strip())
-            name = input("Enter new name (optional): ").strip() or None
-            barcode = input("Enter new barcode (optional): ").strip() or None
-            price_raw = input("Enter new price (optional): ").strip()
-            quantity_raw = input("Enter new quantity (optional): ").strip()
-            price = float(price_raw) if price_raw else None
-            quantity = int(quantity_raw) if quantity_raw else None
-            update_item(argparse.Namespace(
-                id=item_id,
-                name=name,
-                barcode=barcode,
-                price=price,
-                quantity=quantity,
-            ))
-        elif choice == "5":
-            item_id = int(input("Enter item id: ").strip())
-            delete_item(item_id)
-        elif choice == "6":
-            barcode = input("Enter barcode (optional): ").strip() or None
-            name = input("Enter name (optional): ").strip() or None
-            search_external(argparse.Namespace(barcode=barcode, name=name))
+            add_item(
+                argparse.Namespace(
+                    name=name,
+                    barcode=barcode,
+                    price=price,
+                    quantity=quantity,
+                    external_lookup=external_lookup,
+                )
+            )
+        elif choice == "2":
+            # Read (list items)
+            list_items()
         else:
-            print("Invalid choice.")
+            print("Not implemented yet.")
         return
 
     if args.command == "list":
