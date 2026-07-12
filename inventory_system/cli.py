@@ -2,7 +2,10 @@ import argparse
 import json
 import requests
 
+from .external_api import fetch_product_details
+
 API_BASE = "http://127.0.0.1:5000"
+
 
 
 def print_banner():
@@ -54,6 +57,54 @@ def list_items():
     if isinstance(data, dict) and "items" in data:
         data["items"] = _sort_items(data["items"])
     print(json.dumps(data, indent=2))
+    return data
+
+
+def get_items():
+    """
+    Fetch inventory list from API.
+    Returns dict from /inventory.
+    """
+    return _request_json(requests.get, f"{API_BASE}/inventory")
+
+
+def count_items():
+    data = get_items()
+    if isinstance(data, dict) and "items" in data and isinstance(data["items"], list):
+        count = len(data["items"])
+        print(json.dumps({"status": "success", "count": count}, indent=2))
+        return count
+    print(json.dumps({"status": "error", "message": "Unexpected response for count"}, indent=2))
+    return 0
+
+
+def clear_all():
+    data = get_items()
+    if not (isinstance(data, dict) and "items" in data and isinstance(data["items"], list)):
+        print(json.dumps({"status": "error", "message": "Unable to fetch inventory for clear"}, indent=2))
+        return
+
+    deleted_ids = []
+    for it in data["items"]:
+        try:
+            item_id = it.get("id")
+            if item_id is None:
+                continue
+            resp = _request_json(requests.delete, f"{API_BASE}/inventory/{item_id}")
+            # If API returns error status inside JSON, still append id only on success-like payload
+            if isinstance(resp, dict) and resp.get("status") == "success":
+                deleted_ids.append(item_id)
+        except Exception:
+            continue
+
+    print(json.dumps({"status": "success", "deleted": deleted_ids}, indent=2))
+
+
+def sort_records():
+    data = get_items()
+    if isinstance(data, dict) and "items" in data:
+        data["items"] = _sort_items(data["items"])
+    print(json.dumps(data, indent=2))
 
 
 def view_item(item_id: int):
@@ -67,10 +118,20 @@ def add_item(args):
         "barcode": args.barcode,
         "price": args.price,
         "quantity": args.quantity,
-        "external_lookup": args.external_lookup,
+        # NOTE: CLI now sources external product data directly when requested.
+        "external_lookup": False,
     }
+
+    if args.external_lookup:
+        details = fetch_product_details(barcode=args.barcode or None, name=args.name or None)
+        if details:
+            payload.update(details)
+
     data = _request_json(requests.post, f"{API_BASE}/inventory", json=payload)
     print(json.dumps(data, indent=2))
+
+
+
 
 
 def update_item(args):
@@ -93,13 +154,15 @@ def delete_item(item_id: int):
 
 
 def search_external(args):
-    params = {}
-    if args.barcode:
-        params["barcode"] = args.barcode
-    if args.name:
-        params["name"] = args.name
-    data = _request_json(requests.get, f"{API_BASE}/external/search", params=params)
+    details = fetch_product_details(barcode=args.barcode, name=args.name)
+    if not details:
+        data = {"status": "error", "message": "Product details not found"}
+    else:
+        data = {"status": "success", "product": details}
     print(json.dumps(data, indent=2))
+    return data
+
+
 
 
 def main():
@@ -150,7 +213,7 @@ def main():
 
         choice = input("Enter choice (1-9): ").strip()
 
-        # Implement only choices 1 and 2 (as requested)
+        # Implement choices 1-8
         if choice == "1":
             # Create (add item)
             name = input("Enter name: ").strip()
@@ -170,8 +233,50 @@ def main():
         elif choice == "2":
             # Read (list items)
             list_items()
+        elif choice == "3":
+            # Update
+            item_id = int(input("Enter id to update: ").strip())
+            print("Leave fields blank to keep current values.")
+            new_name = input("New name (optional): ").strip() or None
+            new_barcode = input("New barcode (optional): ").strip() or None
+            price_raw = input("New price (optional): ").strip()
+            quantity_raw = input("New quantity (optional): ").strip()
+
+            price_val = float(price_raw) if price_raw else None
+            quantity_val = int(quantity_raw) if quantity_raw else None
+
+            update_payload = argparse.Namespace(
+                id=item_id,
+                name=new_name,
+                barcode=new_barcode,
+                price=price_val,
+                quantity=quantity_val,
+            )
+            update_item(update_payload)
+        elif choice == "4":
+            # Delete
+            item_id = int(input("Enter id to delete: ").strip())
+            delete_item(item_id)
+        elif choice == "5":
+            # Count Records
+            count_items()
+        elif choice == "6":
+            # Clear All
+            confirm = input("Are you sure you want to delete all items? (y/n): ").strip().lower()
+            if confirm == "y":
+                clear_all()
+            else:
+                print("Cancelled.")
+        elif choice == "7":
+            # Search
+            barcode = input("Barcode (optional): ").strip()
+            name = input("Name (optional): ").strip()
+            search_external(argparse.Namespace(barcode=barcode or None, name=name or None))
+        elif choice == "8":
+            # Sort Records
+            sort_records()
         else:
-            print("Not implemented yet.")
+            print("Invalid choice.")
         return
 
     if args.command == "list":

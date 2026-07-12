@@ -19,9 +19,8 @@ def patch_requests(monkeypatch):
     def dummy_get(url, params=None, **kwargs):
         if url.endswith("/inventory"):
             return DummyResponse({"status": "success", "items": []})
-        if url.endswith("/external/search"):
-            return DummyResponse({"status": "success", "product": {"name": "Mock Item"}})
         return DummyResponse({"status": "success", "item": {"id": 1}})
+
 
     def dummy_post(url, json=None, **kwargs):
         return DummyResponse({"status": "success", "item": json}, 201)
@@ -70,11 +69,13 @@ def test_delete_item(capsys):
     assert "Item deleted" in captured.out
 
 
-def test_search_external(capsys):
+def test_search_external(capsys, monkeypatch):
+    monkeypatch.setattr(cli, "fetch_product_details", lambda barcode=None, name=None: {"name": "Mock Item"})
     args = argparse.Namespace(barcode="041196911062", name=None)
     cli.search_external(args)
     captured = capsys.readouterr()
     assert "Mock Item" in captured.out
+
 
 
 def test_main_shows_food_logo(capsys, monkeypatch):
